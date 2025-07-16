@@ -23,6 +23,8 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import os
+import subprocess
 
 from libqtile import bar, layout, qtile, widget
 from libqtile.config import Click, Drag, Group, Key, Match, Screen
@@ -161,7 +163,12 @@ screens = [
                 ),
                 # NB Systray is incompatible with Wayland, consider using StatusNotifier instead
                 # widget.StatusNotifier(),
-                widget.BatteryIcon(),
+                widget.GenPollText(
+    func=lambda: subprocess.check_output(os.path.expanduser("~/.config/scripts/tennis_scores.py")).decode("utf-8").strip(),
+    update_interval=30,
+    mouse_callbacks = {'Button1': lazy.spawn("alacritty -e sh -c \"$HOME/.config/scripts/tennis_scores.py full 2>&1 | less -R\""), 'Button3': lazy.spawn("alacritty -e sh -c \"$HOME/.config/scripts/tennis_scores.py full yesterday 2>&1 | less -R\"")},
+    fmt=' {} ',
+),
                 widget.CPUGraph(),
                 widget.Systray(),
                 widget.Clock(format="%Y-%m-%d %a %I:%M %p"),
