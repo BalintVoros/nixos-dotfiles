@@ -169,7 +169,6 @@ screens = [
     mouse_callbacks = {'Button1': lazy.spawn("alacritty -e sh -c \"$HOME/.config/scripts/tennis_scores.py full 2>&1 | less -R\""), 'Button3': lazy.spawn("alacritty -e sh -c \"$HOME/.config/scripts/tennis_scores.py full yesterday 2>&1 | less -R\"")},
     fmt=' {} ',
 ),
-                widget.CPUGraph(),
                 widget.Systray(),
                 widget.Clock(format="%Y-%m-%d %a %I:%M %p"),
             ],
