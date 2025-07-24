@@ -3,15 +3,15 @@
 {
   home.username = "balint";
   home.homeDirectory = "/home/balint";
-  home.stateVersion = "25.05";
+  home.stateVersion = "24.05";
 
   # --- Your Personal Settings ---
   programs.bash = {
     enable =  true;
     shellAliases = {
       btw = "echo nixos";
-      nrs = "sudo nixos-rebuild switch";
-      nix = "sudo -E nvim /etc/nixos/configuration.nix";
+nrs = "cd ~/dotfiles && sudo nixos-rebuild switch --flake .#nixos";
+nix = "sudo -E nvim /etc/nixos/configuration.nix";
       qtile = "sudo -E nvim ~/.config/qtile/config.py";
       homenix= "sudo -E nvim /etc/nixos/home.nix";
     };
@@ -90,7 +90,5 @@
   };
   home.packages = with pkgs; [ bat ];
   fonts.fontconfig.enable = true;
-
-  # The Qtile config is no longer managed here.
-  # You will manage ~/.config/qtile/config.py yourself.
 }
+
