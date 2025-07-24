@@ -58,6 +58,13 @@ xkb.layout = "hu";
      # This structure is kept for consistency.
    ]))
  ];
+    programs.git = {
+    enable = true;
+    config = {
+      # This tells Git to save your credentials in a file
+      credential.helper = "store";
+    };
+  };
 
   fonts.packages = with pkgs; [
     nerd-fonts.fira-code
