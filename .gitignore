@@ -1,0 +1,7 @@
+# Ignore Nix build results and symlinks
+result*
+
+# --- IMPORTANT: IGNORE YOUR SECRETS ---
+config/qtile/scripts/credentials.json
+
+# You can add other secret files here too
