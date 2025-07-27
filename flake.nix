@@ -12,19 +12,17 @@
       system = "x86_64-linux";
       specialArgs = { };
       modules = [
-        # Import all the system modules directly here
         ./nixos/hardware-configuration.nix
         ./nixos/system.nix
         ./nixos/services.nix
         ./nixos/packages.nix
-
-        # Import the main configuration.nix for the flakes setting
         ./nixos/configuration.nix
 
-        # Import the Home Manager module
         home-manager.nixosModules.home-manager {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
+          # --- ADDED: Tell Home Manager to back up conflicting files ---
+          home-manager.backupFileExtension = "backup";
           home-manager.users.balint = import ./nixos/home.nix;
         }
       ];

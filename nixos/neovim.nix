@@ -1,70 +1,82 @@
 # ~/dotfiles/nixos/neovim.nix
 #
 # This file contains the declarative configuration for Neovim.
+# This version removes the deprecated 'lsp-zero' and uses a standard LSP setup.
 
 { config, pkgs, ... }:
 
 {
   programs.neovim = {
     enable = true;
-    defaultEditor = true; # Make nvim the default 'vi' and 'editor'
+    defaultEditor = true;
     
-    # This section configures Neovim plugins using lazy.nvim
+    # We keep most of the same plugins, just removing lsp-zero
     plugins = with pkgs.vimPlugins; [
-      # Plugin Manager
       lazy-nvim
-
-      # A solid foundation for LSP, completion, and formatting
-      lsp-zero-nvim
-
-      # Dependencies for lsp-zero
       mason-nvim
       mason-lspconfig-nvim
       nvim-lspconfig
       nvim-cmp
       cmp-nvim-lsp
       luasnip
-
-      # Syntax highlighting
+      cmp_luasnip
       nvim-treesitter.withAllGrammars
-
-      # File browsing and fuzzy finding
       telescope-nvim
-      plenary-nvim # A dependency for telescope
-
-      # A beautiful theme that matches your desktop
+      plenary-nvim
       catppuccin-nvim
     ];
 
-    # This is where you configure the plugins
+    # This Lua configuration now sets up the plugins directly
     extraLuaConfig = ''
-      -- Set the theme
+      -- Set theme
       vim.cmd.colorscheme "catppuccin"
 
-      -- Configure lsp-zero
-      local lsp_zero = require('lsp-zero')
-      lsp_zero.on_attach(function(client, bufnr)
-        lsp_zero.default_keymaps({buffer = bufnr})
-      end)
-
-      -- Setup mason to manage LSPs
-      require('mason').setup({})
-      require('mason-lspconfig').setup({
-        ensure_installed = {
-          'tsserver', -- For TypeScript/JavaScript
-          'html',
-          'cssls',
-          'emmet_ls', -- For HTML/CSS abbreviations
-        },
-        handlers = {
-          lsp_zero.default_setup,
-        },
-      })
-      
-      -- Basic options
+      -- Basic editor options
       vim.opt.number = true
       vim.opt.relativenumber = true
       vim.opt.termguicolors = true
+      vim.opt.mouse = 'a'
+      vim.opt.expandtab = true
+      vim.opt.shiftwidth = 2
+      vim.opt.tabstop = 2
+
+      -- Setup Mason to manage Language Servers
+      require("mason").setup()
+      require("mason-lspconfig").setup({
+        ensure_installed = { "tsserver", "html", "cssls", "emmet_ls" },
+      })
+
+      -- Setup nvim-cmp (autocompletion)
+      local cmp = require('cmp')
+      cmp.setup({
+        snippet = {
+          expand = function(args)
+            require('luasnip').lsp_expand(args.body)
+          end,
+        },
+        sources = cmp.config.sources({
+          { name = 'nvim_lsp' },
+          { name = 'luasnip' },
+        }),
+        mapping = cmp.mapping.preset.insert({
+          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+          ['<C-f>'] = cmp.mapping.scroll_docs(4),
+          ['<C-Space>'] = cmp.mapping.complete(),
+          ['<C-e>'] = cmp.mapping.abort(),
+          ['<CR>'] = cmp.mapping.confirm({ select = true }),
+        }),
+      })
+
+      -- Setup nvim-lspconfig
+      local lspconfig = require('lspconfig')
+      local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+      -- Loop through servers installed by Mason and attach them
+      for _, server in ipairs(require("mason-lspconfig").get_installed_servers()) do
+        lspconfig[server].setup({
+          capabilities = capabilities,
+        })
+      end
     '';
   };
 }

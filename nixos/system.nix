@@ -20,6 +20,7 @@
   users.users.balint = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
+    shell = pkgs.zsh;
   };
   
   # --- Git Settings ---
@@ -29,7 +30,7 @@
       credential.helper = "store";
     };
   };
-
+  programs.zsh.enable = true;
   # --- System State ---
   system.stateVersion = "24.05";
 }
