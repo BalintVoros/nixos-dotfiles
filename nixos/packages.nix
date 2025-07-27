@@ -9,11 +9,15 @@
   environment.systemPackages = with pkgs; [
     vim
     wget
+    nodejs 
+    nodePackages.live-server 
     neovim
     pfetch
     flameshot
+    dunst
     git
     rofi
+    libnotify
     firefox
     pcmanfm
     gcc

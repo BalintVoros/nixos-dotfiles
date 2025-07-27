@@ -1,7 +1,9 @@
 {config, pkgs, ...}:
-
+ 
 {
-  home.username = "balint";
+  imports = [ ./neovim.nix ];
+
+ home.username = "balint";
   home.homeDirectory = "/home/balint";
   home.stateVersion = "24.05";
 
@@ -12,6 +14,8 @@
       btw = "echo nixos";
 nrs = "cd ~/dotfiles && sudo nixos-rebuild switch --flake .#nixos";
 nix = "sudo -E nvim /etc/nixos/configuration.nix";
+pnix = "sudo -E nvim /etc/nixos/packages.nix";
+snix = "sudo -E nvim /etc/nixos/system.nix";
       qtile = "sudo -E nvim ~/.config/qtile/config.py";
       homenix= "sudo -E nvim /etc/nixos/home.nix";
     };
