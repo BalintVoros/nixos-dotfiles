@@ -7,17 +7,14 @@
 {
   # --- System Packages ---
   environment.systemPackages = with pkgs; [
+    # Your existing packages
     vim
     wget
-    nodejs 
-    nodePackages.live-server 
     neovim
     pfetch
     flameshot
-    dunst
     git
     rofi
-    libnotify
     firefox
     pcmanfm
     gcc
@@ -25,6 +22,13 @@
     xwallpaper
     pavucontrol
     feh
+    dunst
+    libnotify
+    nodejs
+    nodePackages.live-server
+    vscode
+
+
     (python3.withPackages (ps: [
       ps.psutil
       ps.pulsectl
