@@ -104,19 +104,20 @@ screens = [
             ),
             widget.WindowName(foreground="#bd93f9", padding=5),
             
-            # ÜRES HELY, AMI JOBBRA TOLJA A KÖVETKEZŐ WIDGETEKET
+            # ÜRES HELY, AMI KÖZÉPRE TOLJA A KÖVETKEZŐ WIDGETEKET
             widget.Spacer(bar.STRETCH),
 
-            # JOBB OLDALI WIDGETEK
+            # === KÖZÉPSŐ WIDGETEK (SPORT EREDMÉNYEK) ===
             widget.GenPollText(
                 func=lambda: "🎾",
                 update_interval=3600,
                 mouse_callbacks={
+                    # JAVÍTVA: Az új, egyszerűbb parancsnevet használjuk
                     'Button1': lambda: qtile.cmd_spawn(
-                        f"sh -c 'wimbledon-scores-launcher full > /tmp/tennis_today.txt && {terminal} -e less -R /tmp/tennis_today.txt'"
+                        f"sh -c 'wimbledon-scores full > /tmp/tennis_today.txt && {terminal} -e less -R /tmp/tennis_today.txt'"
                     ),
                     'Button3': lambda: qtile.cmd_spawn(
-                        f"sh -c 'wimbledon-scores-launcher full yesterday > /tmp/tennis_yesterday.txt && {terminal} -e less -R /tmp/tennis_yesterday.txt'"
+                        f"sh -c 'wimbledon-scores full yesterday > /tmp/tennis_yesterday.txt && {terminal} -e less -R /tmp/tennis_yesterday.txt'"
                     ),
                 }
             ),
@@ -125,15 +126,21 @@ screens = [
                 func=lambda: "⚽",
                 update_interval=3600,
                 mouse_callbacks={
+                    # JAVÍTVA: Az új, egyszerűbb parancsnevet használjuk
                     'Button1': lambda: qtile.cmd_spawn(
-                        f"sh -c 'soccer-scores-launcher full > /tmp/soccer_today.txt && {terminal} -e less -R /tmp/soccer_today.txt'"
+                        f"sh -c 'soccer-scores full > /tmp/soccer_today.txt && {terminal} -e less -R /tmp/soccer_today.txt'"
                     ),
                     'Button3': lambda: qtile.cmd_spawn(
-                        f"sh -c 'soccer-scores-launcher full yesterday > /tmp/soccer_yesterday.txt && {terminal} -e less -R /tmp/soccer_yesterday.txt'"
+                        f"sh -c 'soccer-scores full yesterday > /tmp/soccer_yesterday.txt && {terminal} -e less -R /tmp/soccer_yesterday.txt'"
                     ),
                 }
             ),
-            widget.Sep(linewidth=0, padding=10),
+            # === EDDIG TARTANAK A KÖZÉPSŐ WIDGETEK ===
+
+            # ÜRES HELY, AMI JOBBRA TOLJA A KÖVETKEZŐ WIDGETEKET
+            widget.Spacer(bar.STRETCH),
+
+            # JOBB OLDALI WIDGETEK
             widget.Systray(),
             widget.Pomodoro(
                 color_active="#50fa7b", color_inactive="#ff5555",

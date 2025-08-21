@@ -1,6 +1,12 @@
 # ~/dotfiles/nixos/home.nix
 {config, pkgs, ...}:
 
+let
+  # Itt létrehozunk egy speciális Python környezetet, amiben benne van a 'requests' csomag.
+  pythonWithRequests = pkgs.python3.withPackages (ps: [
+    ps.requests
+  ]);
+in
 {
   home.username = "balint";
   home.homeDirectory = "/home/balint";
@@ -11,11 +17,8 @@
     oh-my-zsh = {
       enable = true;
       theme = "agnoster";
-      # This list is now only for plugins that come with Oh My Zsh
       plugins = [ "git" ];
     };
-
-    # --- MODIFIED: This is the correct way to add external plugins ---
     plugins = [
       {
         name = "zsh-autosuggestions";
@@ -26,7 +29,6 @@
         src = pkgs.zsh-syntax-highlighting;
       }
     ];
-
     shellAliases = {
       btw = "echo nixos";
       nrs = "cd ~/dotfiles && sudo nixos-rebuild switch --flake .#nixos";
@@ -61,18 +63,23 @@
     }; 
   };
   
-  home.packages = with pkgs; [ bat
-  python3
-  python3Packages.requests
-  (writeShellScriptBin "wimbledon-scores-launcher" ''
-    #!${pkgs.stdenv.shell}
-    ${pkgs.python3.withPackages (ps: [ ps.requests ])}/bin/python3 ${config.home.homeDirectory}/.config/qtile/scripts/wimbledon_scores.py "$@"
-  '')
-  (writeShellScriptBin "soccer-scores-launcher" ''
-    #!${pkgs.stdenv.shell}
-    ${pkgs.python3.withPackages (ps: [ ps.requests ])}/bin/python3 ${config.home.homeDirectory}/.config/qtile/scripts/soccer_scores.py "$@"
-  '')
- ];
+  home.packages = with pkgs; [
+    bat
+    # A python3 és a requests már a szkriptekhez van csomagolva, itt nincs rájuk szükség.
+    
+    # === JAVÍTOTT RÉSZ ===
+    # Ez a két bejegyzés hozza létre a szkripteket,
+    # amiknek a Nix automatikusan beállítja a helyes Python értelmezőt.
+    (pkgs.writeScriptBin "wimbledon-scores" ''
+      #!${pythonWithRequests}/bin/python3
+      ${builtins.readFile ../scripts/wimbledon_scores.py}
+    '')
+    (pkgs.writeScriptBin "soccer-scores" ''
+      #!${pythonWithRequests}/bin/python3
+      ${builtins.readFile ../scripts/soccer_scores.py}
+    '')
+  ];
+  
   fonts.fontconfig.enable = true;
 }
 
