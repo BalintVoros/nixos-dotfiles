@@ -104,10 +104,10 @@ screens = [
             ),
             widget.WindowName(foreground="#bd93f9", padding=5),
             
-            # ÜRES HELY, AMI KÖZÉPRE TOLJA A KÖVETKEZŐ WIDGETEKET
+            # ÜRES HELY, AMI JOBBRA TOLJA A KÖVETKEZŐ WIDGETEKET
             widget.Spacer(bar.STRETCH),
 
-            # === KÖZÉPSŐ WIDGETEK (SPORT EREDMÉNYEK) ===
+            # JOBB OLDALI WIDGETEK
             widget.GenPollText(
                 func=lambda: "🎾",
                 update_interval=3600,
@@ -135,12 +135,7 @@ screens = [
                     ),
                 }
             ),
-            # === EDDIG TARTANAK A KÖZÉPSŐ WIDGETEK ===
-
-            # ÜRES HELY, AMI JOBBRA TOLJA A KÖVETKEZŐ WIDGETEKET
-            widget.Spacer(bar.STRETCH),
-
-            # JOBB OLDALI WIDGETEK
+            widget.Sep(linewidth=0, padding=10),
             widget.Systray(),
             widget.Pomodoro(
                 color_active="#50fa7b", color_inactive="#ff5555",

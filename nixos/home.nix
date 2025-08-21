@@ -65,11 +65,9 @@ in
   
   home.packages = with pkgs; [
     bat
-    # A python3 és a requests már a szkriptekhez van csomagolva, itt nincs rájuk szükség.
-    
-    # === JAVÍTOTT RÉSZ ===
-    # Ez a két bejegyzés hozza létre a szkripteket,
-    # amiknek a Nix automatikusan beállítja a helyes Python értelmezőt.
+    libnotify
+    python3
+    python3Packages.requests
     (pkgs.writeScriptBin "wimbledon-scores" ''
       #!${pythonWithRequests}/bin/python3
       ${builtins.readFile ../scripts/wimbledon_scores.py}
