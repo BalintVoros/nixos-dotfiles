@@ -3,14 +3,13 @@
 # wimbledon_scores.py (Qtile & NixOS verzió)
 #
 # Ez a szkript Qtile-hoz készült, hogy egyetlen gombként működjön a tenisz eredményekhez.
-# A kattintásokat a Qtile konfigurációja kezeli.
-# - Futtatás argumentum nélkül: a statikus ikon megjelenítése a sávon.
-# - Futtatás 'full' argumentummal: a MAI meccsek teljes listájának generálása.
-# - Futtatás 'full yesterday' argumentummal: a TEGNAPI eredmények listájának generálása.
+# A kattintásokat a Qtile konfigurációja kezeli. A tornákat fontosság szerint rendezi.
+# Támogatja a kedvenc játékosok kiemelését és a rendszerértesítéseket.
 #
 # Függőségek:
 # - python3
 # - python3Packages.requests (NixOS-ben)
+# - libnotify (a rendszerértesítésekhez)
 #
 
 import os
@@ -20,6 +19,10 @@ import requests
 import subprocess
 from datetime import datetime, timedelta
 from collections import defaultdict
+
+# --- KONFIGURÁCIÓS FÁJLOK ---
+FAVORITES_FILE = os.path.expanduser("~/.config/qtile/scripts/tennis_favorites.json")
+STATE_FILE = "/tmp/tennis_notification_state.json"
 
 class Colors:
     """ANSI színkódok a terminálos megjelenítéshez."""
@@ -31,18 +34,35 @@ class Colors:
     RED = '\033[91m'
     YELLOW = '\033[93m'
     WHITE = '\033[97m'
+    MAGENTA = '\033[95m'
 
-def format_full_output(events_by_tournament):
+def load_favorites():
+    """Betölti a kedvenc játékosok listáját a JSON fájlból."""
+    try:
+        with open(FAVORITES_FILE, 'r') as f:
+            return [player.lower() for player in json.load(f)]
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def format_full_output(events_by_tournament, favorites):
     """Az összes csoportosított eseményt egy részletes, színes, szövegfájlba szánt sztringgé formázza."""
     if not events_by_tournament:
         return "Nincsenek megjeleníthető események."
     
     output_lines = []
-    for tournament, events in sorted(events_by_tournament.items()):
+    # Rendezés a torna prioritása szerint
+    sorted_tournaments = sorted(events_by_tournament.items(), key=lambda item: item[1][0]['priority'])
+    
+    for tournament, events in sorted_tournaments:
         output_lines.append(f"{Colors.BOLD}{Colors.CYAN}--- {tournament} ---{Colors.RESET}")
         for event in events:
             p1_display = event['player1']
             p2_display = event['player2']
+
+            if p1_display.lower() in favorites:
+                p1_display = f"{Colors.MAGENTA}⭐ {p1_display}{Colors.RESET}"
+            if p2_display.lower() in favorites:
+                p2_display = f"{Colors.MAGENTA}⭐ {p2_display}{Colors.RESET}"
 
             if event.get('server') == 'p1':
                 p1_display = f"{Colors.GREEN}●{Colors.RESET} {p1_display}"
@@ -72,12 +92,11 @@ def format_full_output(events_by_tournament):
 def process_events(data, allowed_statuses):
     """Segédfüggvény a tenisz API adatok feldolgozásához, a megadott státuszok alapján."""
     events_by_tournament = defaultdict(list)
-    main_tours = ['ATP', 'WTA', 'CHALLENGER']
+    main_tours = ['ATP', 'WTA', 'Grand Slam']
 
     for stage in data.get('Stages', []):
         tour_category = stage.get('Cnm')
         tournament_name = stage.get('Snm', 'Ismeretlen Torna')
-        is_main = tour_category in main_tours
         
         for event in stage.get('Events', []):
             try:
@@ -88,23 +107,17 @@ def process_events(data, allowed_statuses):
                 event_info = {
                     'player1': event.get('T1', [{}])[0].get('Nm', 'P1'),
                     'player2': event.get('T2', [{}])[0].get('Nm', 'P2'),
-                    'details': {},
-                    'server': None,
-                    'winner': None,
+                    'details': {}, 'server': None, 'winner': None,
                     'id': event.get('Eid'),
-                    'is_main_tour': is_main
+                    'priority': 0 if tour_category in main_tours else 1
                 }
 
                 if status == 'In Progress':
                     p1_id = event.get('T1', [{}])[0].get('ID')
-                    if event.get('Esv') == p1_id:
-                        event_info['server'] = 'p1'
-                    else:
-                        event_info['server'] = 'p2'
-                    
+                    if event.get('Esv') == p1_id: event_info['server'] = 'p1'
+                    else: event_info['server'] = 'p2'
                     event_info['details']['sets'] = f"{event.get('Tr1', '0')}-{event.get('Tr2', '0')}"
-                    p1_game = event.get('Tr1G')
-                    p2_game = event.get('Tr2G')
+                    p1_game = event.get('Tr1G'); p2_game = event.get('Tr2G')
                     if p1_game is not None and p2_game is not None:
                         event_info['details']['game'] = f"{p1_game}-{p2_game}"
                     
@@ -117,28 +130,19 @@ def process_events(data, allowed_statuses):
                     p1_id = event.get('T1', [{}])[0].get('ID')
                     p2_id = event.get('T2', [{}])[0].get('ID')
                     if winner_id:
-                        if p1_id and str(winner_id) == str(p1_id):
-                            event_info['winner'] = 'p1'
-                        elif p2_id and str(winner_id) == str(p2_id):
-                            event_info['winner'] = 'p2'
+                        if p1_id and str(winner_id) == str(p1_id): event_info['winner'] = 'p1'
+                        elif p2_id and str(winner_id) == str(p2_id): event_info['winner'] = 'p2'
                     if event_info['winner'] is None:
                         try:
-                            p1_sets = int(event.get('Tr1', '0'))
-                            p2_sets = int(event.get('Tr2', '0'))
-                            if p1_sets > p2_sets:
-                                event_info['winner'] = 'p1'
-                            elif p2_sets > p1_sets:
-                                event_info['winner'] = 'p2'
-                        except (ValueError, TypeError):
-                            pass
+                            p1_sets = int(event.get('Tr1', '0')); p2_sets = int(event.get('Tr2', '0'))
+                            if p1_sets > p2_sets: event_info['winner'] = 'p1'
+                            elif p2_sets > p1_sets: event_info['winner'] = 'p2'
+                        except (ValueError, TypeError): pass
                 
                 events_by_tournament[tournament_name].append(event_info)
             except (AttributeError, KeyError, IndexError):
                 continue
     
-    main_tour_events = {t:e for t,e in events_by_tournament.items() if any(match['is_main_tour'] for match in e)}
-    if main_tour_events:
-        return main_tour_events
     return events_by_tournament
 
 def fetch_data(url):
@@ -148,46 +152,71 @@ def fetch_data(url):
     response.raise_for_status()
     return response.json()
 
-def get_all_events(period):
-    """Letölti és feldolgozza egy adott időszak összes eseményét."""
-    if period == 'today':
+def get_events_for_day(date_str, allowed_statuses):
+    """Letölti és feldolgozza egy adott nap összes eseményét."""
+    url = f"https://prod-public-api.livescore.com/v1/api/app/date/tennis/{date_str}/0"
+    try:
+        data = fetch_data(url)
+        return process_events(data, allowed_statuses=allowed_statuses)
+    except Exception:
+        return None
+
+def send_notification(title, body):
+    """Rendszerértesítést küld a notify-send paranccsal."""
+    try:
+        subprocess.Popen(['notify-send', '-i', 'dialog-information', title, body])
+    except FileNotFoundError:
+        pass
+
+def check_for_notifications(favorites):
+    """Ellenőrzi a kedvenc játékosok meccseit és értesítést küld a változásokról."""
+    if not favorites: return
+    try:
+        try:
+            with open(STATE_FILE, 'r') as f: old_state = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError): old_state = {}
+
         live_url = "https://prod-public-api.livescore.com/v1/api/app/live/tennis/0"
         live_data = fetch_data(live_url)
         live_events = process_events(live_data, allowed_statuses=['In Progress'])
-
-        date_str = datetime.now().strftime("%Y%m%d")
-        date_url = f"https://prod-public-api.livescore.com/v1/api/app/date/tennis/{date_str}/0"
-        date_data = fetch_data(date_url)
-        upcoming_events = process_events(date_data, allowed_statuses=['NS'])
-
-        combined_events = live_events
-        live_event_ids = {event['id'] for tournament in live_events.values() for event in tournament}
         
-        for tournament, events in upcoming_events.items():
+        new_state = {}
+        for events in live_events.values():
             for event in events:
-                if event['id'] not in live_event_ids:
-                    combined_events[tournament].append(event)
-        
-        return filter_by_tour_priority(combined_events)
+                is_favorite_match = event['player1'].lower() in favorites or event['player2'].lower() in favorites
+                if is_favorite_match:
+                    score = f"[{event['details']['sets']}]"
+                    if event['details'].get('game'):
+                        score += f" ({event['details']['game']})"
+                    new_state[event['id']] = f"{event['player1']} vs {event['player2']} {score}"
 
-    else: # yesterday
-        date_str = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
-        url = f"https://prod-public-api.livescore.com/v1/api/app/date/tennis/{date_str}/0"
-        data = fetch_data(url)
-        finished_events = process_events(data, allowed_statuses=['Finished', 'FT', 'Ret.', 'W.O.'])
-        return filter_by_tour_priority(finished_events)
+        for event_id, score in new_state.items():
+            if event_id not in old_state:
+                send_notification("Meccs Kezdődött!", score)
+
+        for event_id, score in old_state.items():
+            if event_id not in new_state:
+                send_notification("Meccs Befejeződött!", score)
+        
+        with open(STATE_FILE, 'w') as f:
+            json.dump(new_state, f)
+    except Exception: pass
 
 if __name__ == "__main__":
     """Fő végrehajtási blokk."""
     try:
         args = sys.argv[1:]
+        favorites = load_favorites()
+
+        if 'check-notify' in args:
+            check_for_notifications(favorites)
+            sys.exit(0)
         
         if 'full' in args:
             period = 'yesterday' if 'yesterday' in args else 'today'
-            all_events = get_all_events(period)
-            print(format_full_output(all_events))
+            all_events = get_events_for_day(period, ['In Progress', 'NS'] if period == 'today' else ['Finished', 'FT', 'Ret.', 'W.O.'])
+            print(format_full_output(all_events, favorites))
         else:
-            # Alapértelmezetten csak az ikont írja ki a sávra
             print("🎾")
 
     except Exception as e:
