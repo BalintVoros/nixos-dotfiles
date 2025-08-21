@@ -61,7 +61,18 @@
     }; 
   };
   
-  home.packages = with pkgs; [ bat ];
+  home.packages = with pkgs; [ bat
+  python3
+  python3Packages.requests
+  (writeShellScriptBin "wimbledon-scores-launcher" ''
+    #!${pkgs.stdenv.shell}
+    ${pkgs.python3.withPackages (ps: [ ps.requests ])}/bin/python3 ${config.home.homeDirectory}/.config/qtile/scripts/wimbledon_scores.py "$@"
+  '')
+  (writeShellScriptBin "soccer-scores-launcher" ''
+    #!${pkgs.stdenv.shell}
+    ${pkgs.python3.withPackages (ps: [ ps.requests ])}/bin/python3 ${config.home.homeDirectory}/.config/qtile/scripts/soccer_scores.py "$@"
+  '')
+ ];
   fonts.fontconfig.enable = true;
 }
 

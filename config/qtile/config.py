@@ -1,7 +1,7 @@
 # ============== QTILE CONFIGURATION ==============
 import os
 import subprocess
-from libqtile import bar, layout, widget, hook
+from libqtile import bar, layout, widget, hook, qtile
 from libqtile.config import Click, Drag, Group, Key, Match, Screen, ScratchPad, DropDown
 from libqtile.lazy import lazy
 
@@ -12,12 +12,15 @@ browser = "firefox"
 file_manager = "pcmanfm"
 font_name = "FiraCode Nerd Font" # Make sure this font is installed
 
+# A home könyvtár elérési útjának meghatározása
+home = os.path.expanduser('~')
+
 # --- Autostart ---
 @hook.subscribe.startup_once
 def autostart():
-    home = os.path.expanduser('~/.config/qtile/autostart.sh')
+    autostart_script = os.path.join(home, '.config', 'qtile', 'autostart.sh')
     try:
-        subprocess.Popen([home])
+        subprocess.Popen([autostart_script])
     except FileNotFoundError:
         pass
 
@@ -64,13 +67,11 @@ groups = [
 
 # --- Add ScratchPad Group ---
 groups.append(ScratchPad("scratchpad", [
-    # MODIFIED: Changed width and height to 0.6 and adjusted x/y to keep it centered.
     DropDown("term", "alacritty", width=0.6, height=0.6, x=0.2, y=0.2, opacity=1),
 ]))
 
 # --- Group Keybindings ---
 for i in groups:
-    # We skip the scratchpad group for regular keybindings
     if i.name != "scratchpad":
         keys.extend([
             Key([mod], i.name, lazy.group[i.name].toscreen(), desc=f"Switch to group {i.name}"),
@@ -86,7 +87,7 @@ widget_defaults = dict(font=font_name, fontsize=14, padding=3, background="#282a
 
 # --- Function to call the email script ---
 def check_email_script():
-    script_path = os.path.expanduser("~/.config/qtile/scripts/check_email.py")
+    script_path = os.path.join(home, '.config', 'qtile', 'scripts', 'check_email.py')
     try:
         return subprocess.check_output(script_path).decode("utf-8").strip()
     except Exception:
@@ -95,14 +96,45 @@ def check_email_script():
 screens = [
     Screen(
         top=bar.Bar([
+            # BAL OLDALI WIDGETEK
             widget.GroupBox(
                 fontsize=24, active="#f8f8f2", inactive="#6272a4",
                 highlight_method="block", this_current_screen_border="#bd93f9",
                 padding_x=5, borderwidth=3
             ),
             widget.WindowName(foreground="#bd93f9", padding=5),
-            widget.Systray(),
+            
+            # ÜRES HELY, AMI JOBBRA TOLJA A KÖVETKEZŐ WIDGETEKET
             widget.Spacer(bar.STRETCH),
+
+            # JOBB OLDALI WIDGETEK
+            widget.GenPollText(
+                func=lambda: "🎾",
+                update_interval=3600,
+                mouse_callbacks={
+                    'Button1': lambda: qtile.cmd_spawn(
+                        f"sh -c 'wimbledon-scores-launcher full > /tmp/tennis_today.txt && {terminal} -e less -R /tmp/tennis_today.txt'"
+                    ),
+                    'Button3': lambda: qtile.cmd_spawn(
+                        f"sh -c 'wimbledon-scores-launcher full yesterday > /tmp/tennis_yesterday.txt && {terminal} -e less -R /tmp/tennis_yesterday.txt'"
+                    ),
+                }
+            ),
+            widget.Sep(linewidth=0, padding=10),
+            widget.GenPollText(
+                func=lambda: "⚽",
+                update_interval=3600,
+                mouse_callbacks={
+                    'Button1': lambda: qtile.cmd_spawn(
+                        f"sh -c 'soccer-scores-launcher full > /tmp/soccer_today.txt && {terminal} -e less -R /tmp/soccer_today.txt'"
+                    ),
+                    'Button3': lambda: qtile.cmd_spawn(
+                        f"sh -c 'soccer-scores-launcher full yesterday > /tmp/soccer_yesterday.txt && {terminal} -e less -R /tmp/soccer_yesterday.txt'"
+                    ),
+                }
+            ),
+            widget.Sep(linewidth=0, padding=10),
+            widget.Systray(),
             widget.Pomodoro(
                 color_active="#50fa7b", color_inactive="#ff5555",
                 prefix_inactive='POMO', padding=5
@@ -117,7 +149,6 @@ screens = [
                 full_char='', unknown_char='', foreground="#50fa7b",
                 low_foreground="#ff5555", padding=5
             ),
-            #   widget.CPU(format=' {load_percent}%', foreground="#ffb86c", padding=5),
             widget.Memory(format='󰍛 {MemUsed:.0f}{mm}', foreground="#50fa7b", measure_mem='G', padding=5),
             widget.PulseVolume(fmt='󰕾 {}', foreground="#f1fa8c", padding=5),
             widget.Clock(format=" %Y-%m-%d %a %I:%M %p", foreground="#8be9fd", padding=10),

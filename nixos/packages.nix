@@ -32,6 +32,7 @@
     (python3.withPackages (ps: [
       ps.psutil
       ps.pulsectl
+      ps.requests
     ]))
   ];
 
