@@ -109,7 +109,8 @@ def process_events(data, allowed_statuses):
                     'player2': event.get('T2', [{}])[0].get('Nm', 'P2'),
                     'details': {}, 'server': None, 'winner': None,
                     'id': event.get('Eid'),
-                    'priority': 0 if tour_category in main_tours else 1
+                    'priority': 0 if tour_category in main_tours else 1,
+                    'is_main_tour': tour_category in main_tours
                 }
 
                 if status == 'In Progress':
@@ -145,6 +146,13 @@ def process_events(data, allowed_statuses):
     
     return events_by_tournament
 
+def filter_by_tour_priority(events):
+    """Szűri az eseményeket a főbb tornákra, ha vannak ilyenek."""
+    main_tour_events = {t:e for t,e in events.items() if any(match['is_main_tour'] for match in e)}
+    if main_tour_events:
+        return main_tour_events
+    return events
+
 def fetch_data(url):
     """Általános függvény adatok letöltéséhez egy URL-ről."""
     headers = {'User-Agent': 'i3blocks-tennis-script/1.0'}
@@ -152,14 +160,34 @@ def fetch_data(url):
     response.raise_for_status()
     return response.json()
 
-def get_events_for_day(date_str, allowed_statuses):
-    """Letölti és feldolgozza egy adott nap összes eseményét."""
-    url = f"https://prod-public-api.livescore.com/v1/api/app/date/tennis/{date_str}/0"
-    try:
+def get_all_events(period):
+    """Letölti és feldolgozza egy adott időszak összes eseményét."""
+    if period == 'today':
+        live_url = "https://prod-public-api.livescore.com/v1/api/app/live/tennis/0"
+        live_data = fetch_data(live_url)
+        live_events = process_events(live_data, allowed_statuses=['In Progress'])
+
+        date_str = datetime.now().strftime("%Y%m%d")
+        date_url = f"https://prod-public-api.livescore.com/v1/api/app/date/tennis/{date_str}/0"
+        date_data = fetch_data(date_url)
+        upcoming_events = process_events(date_data, allowed_statuses=['NS'])
+
+        combined_events = live_events
+        live_event_ids = {event['id'] for tournament in live_events.values() for event in tournament}
+        
+        for tournament, events in upcoming_events.items():
+            for event in events:
+                if event['id'] not in live_event_ids:
+                    combined_events[tournament].append(event)
+        
+        return filter_by_tour_priority(combined_events)
+
+    else: # yesterday
+        date_str = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        url = f"https://prod-public-api.livescore.com/v1/api/app/date/tennis/{date_str}/0"
         data = fetch_data(url)
-        return process_events(data, allowed_statuses=allowed_statuses)
-    except Exception:
-        return None
+        finished_events = process_events(data, allowed_statuses=['Finished', 'FT', 'Ret.', 'W.O.'])
+        return filter_by_tour_priority(finished_events)
 
 def send_notification(title, body):
     """Rendszerértesítést küld a notify-send paranccsal."""
@@ -214,7 +242,7 @@ if __name__ == "__main__":
         
         if 'full' in args:
             period = 'yesterday' if 'yesterday' in args else 'today'
-            all_events = get_events_for_day(period, ['In Progress', 'NS'] if period == 'today' else ['Finished', 'FT', 'Ret.', 'W.O.'])
+            all_events = get_all_events(period)
             print(format_full_output(all_events, favorites))
         else:
             print("🎾")
